@@ -1,0 +1,45 @@
+1. Kubernetes Basics
+  What is Kubernetes?
+      Kubernetes (K8s) is a container orchestration platform that automates deployment, scaling, and management of containerized applications.
+      
+      Instead of running individual Docker containers manually, K8s manages clusters of containers and ensures the desired state is always maintained.
+
+  Why Kubernetes?
+      Automates scaling (adds/removes pods based on load)
+    
+      Self-healing (restarts failed pods)
+    
+      Load balancing (distributes traffic to healthy pods)
+    
+      Service discovery (automatic DNS for services)
+      
+      Declarative configuration (YAML files)
+
+Architecture Components
+      Control Plane (Master Node)
+      API Server – central entry point (kubectl communicates here)
+      
+      etcd – key-value store for cluster state
+      
+      Scheduler – assigns pods to nodes based on resources
+      
+      Controller Manager – ensures desired state (e.g., keeps replicas running)
+
+Worker Node Components
+      Kubelet – runs on every node, manages pods
+      
+      Kube-proxy – manages networking rules (ClusterIP, NodePort)
+      
+      Container Runtime – runs containers (Docker, Containerd)
+
+Real-Time Example
+      Suppose you have 3 microservices: Frontend, Backend, Database.
+
+Kubernetes ensures:
+
+      Each service runs as pods
+      
+      If backend pod crashes, it restarts automatically
+      
+      Load balances traffic between multiple backend pods
+
