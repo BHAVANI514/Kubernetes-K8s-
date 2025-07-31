@@ -197,6 +197,97 @@ YAML Example
                       image: fluentd:latest
 Interview Points
           Difference between Deployment and DaemonSet
-
           Use cases of DaemonSet
 
+2.6 Jobs
+What is a Job?
+        A Job runs a task to completion (not long-running).
+        
+        When the task completes successfully, the Job ends.
+        
+        Useful for batch processing tasks.
+
+Real-Time Example
+        Processing 1000 images and storing results in a database.
+
+YAML Example
+            
+            apiVersion: batch/v1
+            kind: Job
+            metadata:
+              name: batch-job
+            spec:
+              template:
+                spec:
+                  containers:
+                    - name: batch-task
+                      image: busybox
+                      command: ["sh", "-c", "echo Hello Kubernetes && sleep 5"]
+                  restartPolicy: OnFailure
+Interview Points
+            Difference between Job and Deployment
+            
+            Why restartPolicy is OnFailure or Never?
+            
+            Use cases (batch tasks, DB migrations)
+
+2.7 CronJobs
+What is a CronJob?
+            A CronJob runs Jobs on a schedule (like Linux cron).
+            
+            Useful for scheduled tasks (backups, cleanup).
+
+Real-Time Example
+            Backup database every night at midnight.
+
+YAML Example
+            
+            apiVersion: batch/v1
+            kind: CronJob
+            metadata:
+              name: db-backup
+            spec:
+              schedule: "0 0 * * *"   # Midnight every day
+              jobTemplate:
+                spec:
+                  template:
+                    spec:
+                      containers:
+                        - name: backup
+                          image: busybox
+                          command: ["sh", "-c", "echo Taking backup && sleep 10"]
+                      restartPolicy: OnFailure
+Interview Points
+                Difference between CronJob and Job
+                
+                How to schedule periodic tasks?
+                
+                How to manage failed CronJobs?
+
+2.8 Namespaces
+What is a Namespace?
+            Logical separation of resources in a cluster.
+            
+            Useful for multi-team environments (Dev, Test, Prod).
+            
+            Each namespace has its own resources, secrets, and quotas.
+
+Real-Time Example
+            Create separate namespaces for frontend and backend teams to avoid conflicts.
+
+YAML Example
+                apiVersion: v1
+                kind: Namespace
+                metadata:
+                  name: frontend
+                Create resource in namespace
+        
+        kubectl create -f frontend-namespace.yaml
+        kubectl get ns
+        kubectl run nginx --image=nginx -n frontend
+Interview Points
+            Why use namespaces?
+            
+            Default namespaces in Kubernetes (default, kube-system, kube-public)
+            
+            How to switch namespace using kubectl config set-context?
