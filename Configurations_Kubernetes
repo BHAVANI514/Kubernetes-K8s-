@@ -1,0 +1,197 @@
+4. Configurations in Kubernetes
+4.1 ConfigMaps
+    What is a ConfigMap?
+    A Kubernetes object that stores non-sensitive configuration data in key-value format.
+    
+    Helps to separate configuration from application code.
+
+Can be used for:
+
+      Environment variables
+      
+      Command-line arguments
+      
+      Configuration files
+
+Why Do We Use ConfigMaps?
+      Applications often need runtime configurations (e.g., LOG_LEVEL, APP_MODE) that should not be hardcoded.
+      
+      Makes deployment flexible — you can change configurations without rebuilding Docker images.
+
+Real-Time Example
+      API service requires LOG_LEVEL=debug and APP_MODE=production.
+
+ConfigMap YAML
+
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: app-config
+    data:
+      LOG_LEVEL: "debug"
+      APP_MODE: "production"
+    Usage in Pod
+    yaml
+    Copy
+    Edit
+    containers:
+    - name: myapp
+      image: myapp:1.0
+      envFrom:
+        - configMapRef:
+            name: app-config
+4.2 Secrets
+What is a Secret?
+      A Kubernetes object that stores sensitive information (passwords, API tokens, TLS certificates).
+      
+      Data is Base64 encoded (not encrypted by default — encryption at rest must be enabled).
+
+Why Do We Use Secrets?
+        Keep sensitive data separate from code.
+        
+        Prevent credentials from being exposed in plain YAML manifests or Docker images.
+
+Real-Time Example
+      Store PostgreSQL database username and password.
+
+Secret YAML
+        
+        apiVersion: v1
+        kind: Secret
+        metadata:
+          name: db-secret
+        type: Opaque
+        data:
+          username: dXNlcg==      # "user" (Base64 encoded)
+          password: cGFzc3dvcmQ=  # "password"
+Usage in Pod
+        containers:
+        - name: db-app
+          image: postgres:15
+          env:
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: db-secret
+                  key: username
+4.3 Environment Variables
+        What Are Environment Variables in Kubernetes?
+        Variables defined inside Pod/Container to pass runtime configurations.
+      
+      Can come from:
+      
+      Direct values
+      
+      ConfigMaps
+      
+      Secrets
+
+Example
+
+      env:
+      - name: APP_MODE
+        value: "production"
+      - name: DB_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: db-secret
+            key: password
+4.4 Init Containers
+        What is an Init Container?
+        A container that runs before the main application container starts.
+        
+        Used for setup tasks like:
+        
+        Waiting for dependencies (e.g., DB ready)
+        
+        Downloading configuration files
+        
+        Initializing databases
+
+Why Do We Use Init Containers?
+        Ensure proper sequencing: main app only starts after prerequisites are ready.
+
+Real-Time Example
+        API service must wait for the database service to be up before starting.
+
+Init Container YAML
+          
+          apiVersion: v1
+          kind: Pod
+          metadata:
+            name: init-example
+          spec:
+            initContainers:
+              - name: wait-db
+                image: busybox
+                command: ['sh', '-c', 'until nslookup db-service; do sleep 2; done;']
+            containers:
+              - name: app
+                image: myapp:1.0
+4.5 Sidecar Pattern
+What is a Sidecar Container?
+          A helper container that runs alongside the main container in the same Pod.
+          
+          Shares volumes and network namespace with the main container.
+
+Why Do We Use Sidecar Pattern?
+          To extend functionality of the main container without modifying it:
+          
+          Log collection (e.g., Fluentd)
+          
+          Monitoring agents (Prometheus exporters)
+          
+          Proxy (Service Mesh sidecars like Envoy)
+
+Real-Time Example
+        Main app writes logs to /var/log.
+        
+        Sidecar container reads logs and ships them to ELK/Prometheus.
+
+Sidecar Pattern YAML
+        
+        apiVersion: v1
+        kind: Pod
+        metadata:
+          name: sidecar-example
+        spec:
+          containers:
+            - name: main-app
+              image: myapp:1.0
+              volumeMounts:
+                - name: shared-logs
+                  mountPath: /var/log
+            - name: log-collector
+              image: fluentd
+              volumeMounts:
+                - name: shared-logs
+                  mountPath: /logs
+          volumes:
+            - name: shared-logs
+              emptyDir: {}
+Interview Questions
+ConfigMap vs Secret?
+        
+        ConfigMap: Non-confidential data.
+        
+        Secret: Confidential data (Base64 encoded).
+        
+        Secrets support volume mounts and environment variables, and can be encrypted at rest.
+
+Why use Init Containers?
+        
+        To run setup tasks before main containers.
+        
+        Example: wait for DB to be ready, download configs.
+
+Sidecar vs Init Container?
+      
+      Init container: Runs once before main container starts.
+      
+      Sidecar container: Runs alongside main container continuously.
+
+Can ConfigMap and Secret be updated without redeploying the Pod?
+      
+      If mounted as a volume → auto-updates.
+      
+      If used as environment variables → requires pod restart.
