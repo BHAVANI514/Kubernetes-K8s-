@@ -1,0 +1,259 @@
+Kubernetes networking lets pods communicate with each other, with services inside the cluster, and with the outside world.
+
+3.1 Types of Services
+What is a Service?
+      A stable endpoint (virtual IP) that exposes pods.
+      
+      Without services, pods would change IPs every restart → difficult to connect.
+
+Types of Services
+1. ClusterIP (default)
+      Exposes pods inside the cluster only.
+      
+      Used for internal microservice communication.
+      
+      Real-Time Example:
+      
+      Frontend service (React) talks to Backend service (Go API) using ClusterIP.
+
+YAML Example:
+
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: backend-svc
+      spec:
+        selector:
+          app: backend
+        ports:
+          - port: 80
+            targetPort: 8080
+2. NodePort
+        Exposes pods outside the cluster via <NodeIP>:<NodePort>.
+        
+        Good for testing, not production.
+        
+        Real-Time Example:
+        
+        Access app running in Minikube on port 30007.
+
+YAML Example:
+        
+        apiVersion: v1
+        kind: Service
+        metadata:
+          name: frontend-svc
+        spec:
+          type: NodePort
+          selector:
+            app: frontend
+          ports:
+            - port: 80
+              targetPort: 80
+              nodePort: 30007
+3. LoadBalancer
+          Exposes service using cloud provider’s load balancer (AWS, GCP, Azure).
+          
+          Used for production external traffic.
+  
+  Real-Time Example:
+  
+          Public access to API via cloud Load Balancer.
+
+YAML Example:
+          
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: api-svc
+          spec:
+            type: LoadBalancer
+            selector:
+              app: api
+            ports:
+              - port: 80
+                targetPort: 8080
+
+
+
+3.2 Ingress & Ingress Controller in Kubernetes
+What is Ingress?
+      Ingress is a Kubernetes resource that manages external access to services (usually HTTP/HTTPS).
+      
+      It provides routing rules to expose multiple services under a single external IP or domain name.
+
+Why Do We Use It?
+      Avoids exposing each service with a separate LoadBalancer or NodePort.
+      
+      Enables path-based routing (/api, /web) or host-based routing (api.example.com, web.example.com).
+      
+      Supports TLS/SSL termination for HTTPS traffic.
+
+What is an Ingress Controller?
+        A component that implements the Ingress resource (e.g., NGINX Ingress Controller).
+        
+        Monitors the cluster for Ingress objects and configures the underlying load balancer/proxy accordingly.
+
+Real-Time Example
+Scenario:
+
+      example.com/api → Route traffic to backend service.
+      
+      example.com/web → Route traffic to frontend service.
+
+Ingress YAML Example
+        
+        apiVersion: networking.k8s.io/v1
+        kind: Ingress
+        metadata:
+          name: example-ingress
+          annotations:
+            nginx.ingress.kubernetes.io/rewrite-target: /
+        spec:
+          rules:
+          - host: example.com
+            http:
+              paths:
+              - path: /api
+                pathType: Prefix
+                backend:
+                  service:
+                    name: backend-svc
+                    port:
+                      number: 80
+              - path: /web
+                pathType: Prefix
+                backend:
+                  service:
+                    name: frontend-svc
+                    port:
+                      number: 80
+How It Works
+        Ingress Controller (e.g., NGINX) runs in the cluster.
+        
+        Ingress resource defines routing rules.
+
+When users visit:
+      
+      example.com/api → Traffic goes to backend-svc.
+      
+      example.com/web → Traffic goes to frontend-svc.
+
+TLS/HTTPS Example
+          
+          spec:
+            tls:
+            - hosts:
+                - example.com
+              secretName: tls-secret # pre-created TLS certificate
+            rules:
+            - host: example.com
+              http:
+                paths:
+                  - path: /api
+                    pathType: Prefix
+                    backend:
+                      service:
+                        name: backend-svc
+                        port:
+                          number: 80
+
+
+3.3 Network Policies in Kubernetes
+What is a Network Policy?
+      A NetworkPolicy in Kubernetes is a resource that controls pod-to-pod communication at the IP/network level.
+      It defines which pods are allowed to talk to which other pods (ingress/egress rules).
+
+Default Behavior
+    By default:
+
+      All pods can communicate with each other (no restrictions).
+
+When you create a NetworkPolicy:
+        
+        Pods not matched by the policy remain unrestricted.
+        
+        Pods matched by the policy become isolated — they can only communicate as per defined rules.
+
+Why We Use It?
+      Security: Restrict access between services (Zero Trust principle).
+      
+      Compliance: Ensure only required pods/services can talk to each other.
+      
+      Reduce attack surface: Prevent lateral movement in case of compromise.
+
+Real-Time Example
+Scenario:
+      
+      frontend pods should communicate with backend pods.
+      
+      Block all other pods from accessing backend pods.
+
+Network Policy YAML
+        
+        apiVersion: networking.k8s.io/v1
+        kind: NetworkPolicy
+        metadata:
+          name: allow-frontend-to-backend
+          namespace: default
+        spec:
+          podSelector:
+            matchLabels:
+              app: backend          # Select backend pods
+          policyTypes:
+            - Ingress               # Control incoming traffic to backend pods
+          ingress:
+            - from:
+                - podSelector:
+                    matchLabels:
+                      app: frontend # Allow only frontend pods
+              ports:
+                - protocol: TCP
+                  port: 80          # Allow access on port 80
+How It Works
+        backend pods become isolated (no one can access them by default).
+        
+        Only frontend pods (with app: frontend label) can connect to backend pods on port 80.
+        
+        Any other pod in the cluster is blocked.
+
+Important Points
+        Network Policies require a Network Plugin that supports them (e.g., Calico, Cilium, Weave).
+        
+        Policies are namespace-scoped (only apply within the same namespace unless explicitly configured otherwise).
+        
+        You can define Ingress (incoming) and Egress (outgoing) rules.
+
+
+
+3.4 Service Discovery & DNS
+
+1. Pods have dynamic IPs
+    Pods are ephemeral – when a pod restarts, it gets a new IP address.
+
+    If one pod wants to talk to another, relying on IP is not possible.
+    
+    Service + DNS gives a fixed name to access, regardless of pod IP changes.
+
+2. Easy communication between microservices
+      Microservices (e.g., backend, frontend, database) can communicate by service names:
+      backend-svc.default.svc.cluster.local
+      No need to configure IPs manually.
+
+3. Built-in load balancing
+      A Service routes traffic to multiple pods (behind it).
+      
+      DNS name always resolves to the Service, which load balances traffic.
+
+4. Cross-namespace access
+    DNS naming format allows organizing services across namespaces:
+
+php-template
+
+    <service>.<namespace>.svc.cluster.local
+5. Standardization
+    Works the same way across all Kubernetes clusters.
+    
+    Allows external integrations (e.g., API gateways, databases) to easily discover services.
+
+
