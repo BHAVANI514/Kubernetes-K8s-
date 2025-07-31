@@ -1,0 +1,202 @@
+2. Core Objects in Kubernetes
+These are the building blocks of every Kubernetes deployment.
+
+2.1 Pods
+What is a Pod?
+    The smallest deployable unit in Kubernetes.
+    
+    A pod can run one or more containers (multi-container pods share network & storage).
+    
+    Containers inside a pod communicate via localhost.
+
+Why use Pods?
+    You don’t deploy containers directly in K8s; you deploy pods.
+    
+    Useful when you need sidecar containers (e.g., logging, monitoring).
+
+Real-Time Example
+    Frontend pod: Runs NGINX container serving HTML.
+    
+    Backend pod: Runs API service in Go.
+    
+    Sidecar pod: A pod with app + log collector container.
+
+YAML Example
+        apiVersion: v1
+        kind: Pod
+        metadata:
+          name: myapp-pod
+          labels:
+            app: myapp
+        spec:
+          containers:
+            - name: myapp-container
+              image: nginx:latest
+              ports:
+                - containerPort: 80
+Key Points:
+
+          apiVersion: v1 → core resource
+          
+          kind: Pod → defines object type
+          
+          metadata → name/labels for selection
+          
+          spec.containers → container definition
+
+Interview Points
+      Pod vs Container
+
+      Multi-container pod use cases
+      
+      Pod lifecycle phases (Pending, Running, Succeeded, Failed, Unknown)
+
+2.2 ReplicaSets
+What is a ReplicaSet?
+      Ensures a specified number of pod replicas are running.
+      
+      If a pod fails, ReplicaSet creates a new one automatically.
+
+Real-Time Example
+      You need 3 backend pods always running for load balancing.
+
+YAML Example
+          
+          apiVersion: apps/v1
+          kind: ReplicaSet
+          metadata:
+            name: backend-rs
+          spec:
+            replicas: 3
+            selector:
+              matchLabels:
+                app: backend
+            template:
+              metadata:
+                labels:
+                  app: backend
+              spec:
+                containers:
+                  - name: backend
+                    image: my-backend:1.0
+Interview Points
+        Difference between ReplicaSet and Deployment
+        
+        How ReplicaSet ensures high availability
+
+2.3 Deployments
+What is a Deployment?
+        Manages ReplicaSets and provides rolling updates and rollbacks.
+        
+        Most commonly used to deploy stateless applications.
+
+Real-Time Example
+        Deploy a Go REST API service with auto rollback if the new version fails.
+
+YAML Example
+            
+            apiVersion: apps/v1
+            kind: Deployment
+            metadata:
+              name: myapp-deployment
+            spec:
+              replicas: 3
+              selector:
+                matchLabels:
+                  app: myapp
+              template:
+                metadata:
+                  labels:
+                    app: myapp
+                spec:
+                  containers:
+                    - name: myapp-container
+                      image: myapp:1.0
+                      ports:
+                        - containerPort: 8080
+Interview Points
+            Deployment vs ReplicaSet
+            
+            Rolling update vs Recreate strategy
+            
+            How to rollback a deployment?
+
+2.4 StatefulSets
+What is a StatefulSet?
+        Manages stateful applications (databases, Kafka, etc.).
+        
+        Provides stable network IDs and persistent storage.
+
+Real-Time Example
+Deploy a PostgreSQL database with persistent storage.
+
+YAML Example
+            
+            apiVersion: apps/v1
+            kind: StatefulSet
+            metadata:
+              name: postgres-db
+            spec:
+              serviceName: "postgres"
+              replicas: 2
+              selector:
+                matchLabels:
+                  app: postgres
+              template:
+                metadata:
+                  labels:
+                    app: postgres
+                spec:
+                  containers:
+                    - name: postgres
+                      image: postgres:15
+                      ports:
+                        - containerPort: 5432
+                      volumeMounts:
+                        - name: data
+                          mountPath: /var/lib/postgresql/data
+              volumeClaimTemplates:
+                - metadata:
+                    name: data
+                  spec:
+                    accessModes: [ "ReadWriteOnce" ]
+                    resources:
+                      requests:
+                        storage: 1Gi
+Interview Points
+          StatefulSet vs Deployment
+          
+          When do you use StatefulSets?
+          
+          Why are StatefulSets important for databases?
+
+2.5 DaemonSets
+What is a DaemonSet?
+          Ensures one pod per node (used for system services like logging/monitoring agents).
+
+Real-Time Example
+          Deploy Fluentd logging agent to every node.
+
+YAML Example
+            
+            apiVersion: apps/v1
+            kind: DaemonSet
+            metadata:
+              name: fluentd
+            spec:
+              selector:
+                matchLabels:
+                  app: fluentd
+              template:
+                metadata:
+                  labels:
+                    app: fluentd
+                spec:
+                  containers:
+                    - name: fluentd
+                      image: fluentd:latest
+Interview Points
+          Difference between Deployment and DaemonSet
+
+          Use cases of DaemonSet
+
